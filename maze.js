@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Maze Generation (DFS with Recursive Backtracking) ---
-    function generateMaze(mazeWidth, mazeHeight) {
+    function generateMaze(mazeWidth, mazeHeight, braid = 0.25) {
         const grid = Array(mazeHeight * 2 + 1).fill(0).map(() => Array(mazeWidth * 2 + 1).fill(1));
         function isValid(y, x) { return y >= 0 && y < grid.length && x >= 0 && x < grid[0].length; }
         const directions = [[0, 2], [2, 0], [0, -2], [-2, 0]];
@@ -25,6 +25,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 stack.pop();
             }
         }
+
+        // Add loops/braids to make it more complex
+        if (braid > 0) {
+            for (let y = 1; y < grid.length - 1; y++) {
+                for (let x = 1; x < grid[0].length - 1; x++) {
+                    // Check if the current cell is a wall between two paths (a potential door)
+                    const isHorizontalDoor = grid[y][x - 1] === 0 && grid[y][x + 1] === 0;
+                    const isVerticalDoor = grid[y - 1][x] === 0 && grid[y + 1][x] === 0;
+                    
+                    if (grid[y][x] === 1 && (isHorizontalDoor || isVerticalDoor)) {
+                        if (Math.random() < braid) {
+                            grid[y][x] = 0; // Knock down the wall
+                        }
+                    }
+                }
+            }
+        }
+
         return grid;
     }
 
@@ -47,7 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Core Game Functions ---
     function init() {
         const mazeGridWidth = 20, mazeGridHeight = 14;
-        maze = generateMaze(mazeGridWidth, mazeGridHeight);
+        // Generate the maze with a 25% chance of creating extra paths (braids)
+        maze = generateMaze(mazeGridWidth, mazeGridHeight, 0.25);
         worldWidth = maze[0].length * cellSize;
         worldHeight = maze.length * cellSize;
 
