@@ -1,0 +1,83 @@
+/* General Body Styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    /* Prevent pinch-zoom and other touch gestures on the page */
+    touch-action: none;
+    overflow: hidden;
+}
+
+/* Game Container */
+#game-container {
+    text-align: center;
+    position: relative;
+}
+
+h1 {
+    color: #444;
+    margin-bottom: 1rem;
+}
+
+/* Canvas Styling */
+#maze-canvas {
+    background-color: #ffffff;
+    border: 2px solid #d1d1d1;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Win Message Modal */
+#win-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 2rem 3rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    border: 1px solid #eee;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    text-align: center;
+}
+
+#win-message p {
+    font-size: 1.5rem;
+    color: #007bff;
+    margin: 0 0 1rem 0;
+    font-weight: 500;
+}
+
+/* Generic Button Style */
+button {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    border: none;
+    color: #fff;
+    background-color: #007bff;
+    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.3);
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+/* Helper class to hide elements */
+.hidden {
+    display: none;
+}
