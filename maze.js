@@ -334,6 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 imageModal.style.display = 'none';
                 mathChallenge.active = false;
+                isFollowing = true; // Resume player movement
             }, 2000);
         } else {
             mathChallenge.attempts++;
