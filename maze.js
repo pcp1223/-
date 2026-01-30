@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let selectedCharacter = null; // Corrected variable name
     let selectedMazeSize = null;
-    const imagePaths = { eddie: 'eddie.png', murphy: 'murphy.png', dog: 'dog.png', master01: 'master01.png', dog02: 'dog02.png', wall: 'wall.png', goal: 'goal.jpg' }; // Added wall and goal
+    const imagePaths = { eddie: 'eddie.png', murphy: 'murphy.png', dog: 'dog.png', master01: 'master01.png', dog02: 'dog02.png', wall: 'wall.png', goal: 'goal.jpg', door: 'do.png', floor: 'floor.png', start: 'start.png' }; // Added start
     const loadedImages = {};
     let dogItem;
     let mathChallenge = { active: false, attempts: 0, question: '', answer: 0 };
@@ -88,11 +88,12 @@ document.addEventListener('DOMContentLoaded', () => {
             img.onload = () => {
                 loadedCount++;
                 loadedImages[key] = img;
+                console.log(`Preload: Successfully loaded ${key}: ${imagePaths[key]}`); // Debug log
                 if (loadedCount === totalImages) callback();
             };
             img.onerror = () => {
                 loadedCount++;
-                console.error(`Failed to load image: ${imagePaths[key]}`);
+                console.error(`Preload: Failed to load image: ${key} at ${imagePaths[key]}`); // Debug log
                 if (loadedCount === totalImages) callback();
             };
         });
@@ -381,7 +382,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         ctx.drawImage(imageToDraw, x * cellSize, y * cellSize, cellSize, cellSize);
                     } else {
                         // Fallback to solid color if image not loaded
-                        ctx.fillStyle = '#333';
+                        ctx.fillStyle = '#333'; // Dark grey for walls
+                        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                } else if (maze[y][x] === 0) { // Path cells
+                    const floorImage = loadedImages['floor'];
+                    if (floorImage) {
+                        ctx.drawImage(floorImage, x * cellSize, y * cellSize, cellSize, cellSize);
+                    } else {
+                        // Fallback to white color if image not loaded
+                        ctx.fillStyle = '#ffffff'; // White for floor
                         ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
                     }
                 }
@@ -390,10 +400,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawEndpoints() {
-        ctx.fillStyle = '#28a745';
-        ctx.fillRect(startPos.x * cellSize, startPos.y * cellSize, cellSize, cellSize);
-        ctx.fillStyle = '#007bff';
-        ctx.fillRect(endPos.x * cellSize, endPos.y * cellSize, cellSize, cellSize);
+        // Start Point (Image)
+        const startImage = loadedImages['start'];
+        if (startImage) {
+            const enlargedSize = cellSize * 3;
+            // To center a 3x image in a 1x cell: offset = (1 - 3)/2 = -1 cell
+            const drawX = startPos.x * cellSize - cellSize; 
+            const drawY = startPos.y * cellSize - cellSize;
+            ctx.drawImage(startImage, drawX, drawY, enlargedSize, enlargedSize);
+        } else {
+            // Fallback to green square if image not loaded
+            ctx.fillStyle = '#28a745';
+            ctx.fillRect(startPos.x * cellSize, startPos.y * cellSize, cellSize, cellSize);
+        }
+        
+        // End Point (Door image)
+        const doorImage = loadedImages['door'];
+        // Debug logs for doorImage removed as issue should be resolved
+        if (doorImage) {
+            // Draw enlarged door, centered in its original cell area
+            const enlargedSize = cellSize * 2;
+            const drawX = endPos.x * cellSize - cellSize / 2; // Adjust x to center enlarged image
+            const drawY = endPos.y * cellSize - cellSize / 2; // Adjust y to center enlarged image
+            ctx.drawImage(doorImage, drawX, drawY, enlargedSize, enlargedSize);
+        } else {
+            // Fallback to blue square if image not loaded
+            ctx.fillStyle = '#007bff';
+            ctx.fillRect(endPos.x * cellSize, endPos.y * cellSize, cellSize, cellSize);
+        }
     }
 
     function drawDogItem() {

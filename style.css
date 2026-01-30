@@ -263,6 +263,14 @@ button:active {
     background-color: #218838;
 }
 
+.char-select-btn.selected {
+    background-color: #28a745; /* Green for selected */
+}
+
+.char-select-btn.selected:hover {
+    background-color: #218838;
+}
+
 #start-game-btn {
     margin-top: 2rem;
     font-size: 1.2rem;
