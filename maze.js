@@ -79,22 +79,34 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Image Preloading ---
     function preloadImages(callback) {
         let loadedCount = 0;
+        let hasPreloadError = false; // Flag to track if any image failed to load
         const imageKeys = Object.keys(imagePaths);
         const totalImages = imageKeys.length;
-        if (totalImages === 0) { callback(); return; }
+
+        if (totalImages === 0) { callback(hasPreloadError); return; } // Pass error state to callback
+
+        console.log("Preloading started for:", imageKeys);
+
         imageKeys.forEach(key => {
             const img = new Image();
             img.src = imagePaths[key];
             img.onload = () => {
                 loadedCount++;
                 loadedImages[key] = img;
-                console.log(`Preload: Successfully loaded ${key}: ${imagePaths[key]}`); // Debug log
-                if (loadedCount === totalImages) callback();
+                console.log(`Preload: Successfully loaded ${key}: ${imagePaths[key]}`);
+                if (loadedCount === totalImages) {
+                    console.log("Preload: All images processed.");
+                    callback(hasPreloadError); // Pass error state to callback
+                }
             };
             img.onerror = () => {
+                hasPreloadError = true; // Mark that an error occurred
                 loadedCount++;
-                console.error(`Preload: Failed to load image: ${key} at ${imagePaths[key]}`); // Debug log
-                if (loadedCount === totalImages) callback();
+                console.error(`Preload: Failed to load image: ${key} at ${imagePaths[key]}`);
+                if (loadedCount === totalImages) {
+                    console.log("Preload: All images processed (with errors).");
+                    callback(hasPreloadError); // Pass error state to callback
+                }
             };
         });
     }
@@ -115,7 +127,18 @@ document.addEventListener('DOMContentLoaded', () => {
         charSelectButtons.forEach(button => button.disabled = true);
         mazeSizeButtons.forEach(button => button.disabled = true);
         
-        preloadImages(() => {
+        preloadImages((hasError) => { // Receive the error flag
+            if (hasError) {
+                // Display a prominent error message to the user
+                infoText.textContent = '遊戲資源載入失敗！請檢查圖片檔案名稱或路徑。';
+                infoModal.style.display = 'flex';
+                // Disable everything so game can't start
+                charSelectButtons.forEach(button => button.disabled = true);
+                mazeSizeButtons.forEach(button => button.disabled = true);
+                startGameBtn.disabled = true;
+                return; // Stop further setup
+            }
+
             // Enable selection buttons once images are loaded
             charSelectButtons.forEach(button => button.disabled = false);
             mazeSizeButtons.forEach(button => button.disabled = false);
