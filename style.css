@@ -214,4 +214,66 @@ button:active {
     margin-bottom: 1.5rem;
 }
 
+/* --- Timer Display --- */
+#timer-display {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 8px 15px;
+    border-radius: 5px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+    z-index: 100; /* Ensure it's above the canvas but below modals */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+#game-timer {
+    color: #007bff; /* Blue color for the actual time */
+}
+
+/* --- Maze Size Selection --- */
+.modal-content h3 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.maze-size-options {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.maze-size-btn {
+    background-color: #6c757d; /* Grey for unselected */
+}
+
+.maze-size-btn:hover {
+    background-color: #5a6268;
+}
+
+.maze-size-btn.selected {
+    background-color: #28a745; /* Green for selected */
+}
+
+.maze-size-btn.selected:hover {
+    background-color: #218838;
+}
+
+#start-game-btn {
+    margin-top: 2rem;
+    font-size: 1.2rem;
+    padding: 1rem 2rem;
+}
+
+#start-game-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+
 

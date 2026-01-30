@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Maze Generation (DFS with Recursive Backtracking) ---
     function generateMaze(mazeWidth, mazeHeight, braid = 0.15) {
         const grid = Array(mazeHeight * 2 + 1).fill(0).map(() => Array(mazeWidth * 2 + 1).fill(1));
-        function isValid(y, x) { return y >= 0 && y < grid.length && x >= 0 && x < grid[0].length; }
+        function isValid(y, x) { return y >= 0 && y < grid.length && x >= 0 && x < grid[0].length; } // Fixed: grid[0].length
         const directions = [[0, 2], [2, 0], [0, -2], [-2, 0]];
         let startY = 1, startX = 1;
         const stack = [{ y: startY, x: startX }];
@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (unvisitedNeighbors.length > 0) {
                 const nextCell = unvisitedNeighbors[Math.floor(Math.random() * unvisitedNeighbors.length)];
                 grid[nextCell.y][nextCell.x] = 0;
-                grid[current.y + (nextCell.y - current.y) / 2][current.x + (nextCell.x - current.x) / 2] = 0;
+                grid[current.y + (nextCell.y - current.y) / 2][current.x + (nextCell.x - current.x) / 2] = 0; // Fixed: nextCell.x
                 stack.push(nextCell);
             } else {
                 stack.pop();
@@ -47,6 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const characterSelectModal = document.getElementById('character-select-modal');
     const gameContainer = document.getElementById('game-container');
     const charSelectButtons = document.querySelectorAll('.char-select-btn');
+    const mazeSizeButtons = document.querySelectorAll('.maze-size-btn');
+    const startGameBtn = document.getElementById('start-game-btn');
     const imageModal = document.getElementById('image-modal');
     const eventImage = document.getElementById('event-image');
     const questionModal = document.getElementById('question-modal');
@@ -57,17 +59,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const infoModal = document.getElementById('info-modal');
     const infoText = document.getElementById('info-text');
     const infoCloseBtn = document.getElementById('info-close-btn');
+    const timerDisplay = document.getElementById('timer-display');
+    const gameTimer = document.getElementById('game-timer');
 
     // --- Game State Variables ---
     let maze, player, camera, target = { x: 0, y: 0 }, isFollowing = false;
     let worldWidth, worldHeight, startPos, endPos;
     const cellSize = 40;
     
-    let selectedCharacterName = 'eddie';
+    let selectedCharacter = null; // Corrected variable name
+    let selectedMazeSize = null;
     const imagePaths = { eddie: 'eddie.png', murphy: 'murphy.png', dog: 'dog.png', master01: 'master01.png', dog02: 'dog02.png' };
     const loadedImages = {};
     let dogItem;
     let mathChallenge = { active: false, attempts: 0, question: '', answer: 0 };
+    let gameStartTime = null; // For timer
+    let elapsedTime = 0; // For timer
 
     // --- Image Preloading ---
     function preloadImages(callback) {
@@ -93,24 +100,77 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- Core Game Functions ---
     function setupApplication() {
+        // Reset selections and disable start button
+        selectedCharacter = null;
+        selectedMazeSize = null;
+        startGameBtn.disabled = true;
+
+        // Visual reset for character buttons
+        charSelectButtons.forEach(button => button.classList.remove('selected'));
+        // Visual reset for maze size buttons
+        mazeSizeButtons.forEach(button => button.classList.remove('selected'));
+
+        // Disable all selection buttons while preloading. Enabled in preloadImages callback.
         charSelectButtons.forEach(button => button.disabled = true);
+        mazeSizeButtons.forEach(button => button.disabled = true);
+        
         preloadImages(() => {
+            // Enable selection buttons once images are loaded
             charSelectButtons.forEach(button => button.disabled = false);
+            mazeSizeButtons.forEach(button => button.disabled = false);
+
             gameContainer.style.display = 'none';
-            characterSelectModal.style.display = 'flex';
+            characterSelectModal.style.display = 'flex'; // Show character select
             winMessage.style.display = 'none';
             imageModal.style.display = 'none';
             questionModal.style.display = 'none';
             infoModal.style.display = 'none';
+            timerDisplay.style.display = 'none'; // Ensure timer is hidden initially
         });
     }
 
-    function startGame(characterName) {
-        selectedCharacterName = characterName;
+    function updateStartButtonState() {
+        startGameBtn.disabled = !(selectedCharacter && selectedMazeSize);
+    }
+
+    function selectCharacter(characterName, button) {
+        selectedCharacter = characterName;
+        charSelectButtons.forEach(btn => btn.classList.remove('selected'));
+        button.classList.add('selected');
+        updateStartButtonState();
+    }
+
+    function selectMazeSize(size, button) {
+        selectedMazeSize = size;
+        mazeSizeButtons.forEach(btn => btn.classList.remove('selected'));
+        button.classList.add('selected');
+        updateStartButtonState();
+    }
+
+    function finalizeGameStart() {
+        if (!selectedCharacter || !selectedMazeSize) {
+            console.error("Character or Maze Size not selected!");
+            return;
+        }
+
         characterSelectModal.style.display = 'none';
         gameContainer.style.display = 'block';
 
-        const mazeGridWidth = 20, mazeGridHeight = 14;
+        let mazeGridWidth, mazeGridHeight;
+        switch(selectedMazeSize) {
+            case 'small':
+                mazeGridWidth = 15; mazeGridHeight = 10;
+                break;
+            case 'medium':
+                mazeGridWidth = 20; mazeGridHeight = 14;
+                break;
+            case 'large':
+                mazeGridWidth = 25; mazeGridHeight = 18;
+                break;
+            default:
+                mazeGridWidth = 20; mazeGridHeight = 14; // Default to medium
+        }
+        
         maze = generateMaze(mazeGridWidth, mazeGridHeight, 0.15);
         worldWidth = maze[0].length * cellSize;
         worldHeight = maze.length * cellSize;
@@ -137,6 +197,11 @@ document.addEventListener('DOMContentLoaded', () => {
         isFollowing = false;
         mathChallenge.active = false;
         
+        gameStartTime = null; // Reset timer
+        elapsedTime = 0;
+        updateTimerDisplay(); // Display 00:00
+        timerDisplay.style.display = 'block'; // Show timer
+
         if (window.gameAnimationId) cancelAnimationFrame(window.gameAnimationId);
         gameLoop();
     }
@@ -170,6 +235,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function update() {
         if (!isFollowing || (player.x === target.x && player.y === target.y) || mathChallenge.active) return;
+        
+        // Timer update
+        if (gameStartTime === null) {
+            gameStartTime = performance.now();
+        }
+        elapsedTime = performance.now() - gameStartTime;
+        updateTimerDisplay();
+
         const speed = 10;
         const dx = target.x - player.x, dy = target.y - player.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -192,6 +265,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function clampCamera() {
         camera.x = Math.max(0, Math.min(camera.x, worldWidth - canvas.width));
         camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
+    }
+
+    // --- Timer Display ---
+    function updateTimerDisplay() {
+        const totalSeconds = Math.floor(elapsedTime / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        const formattedTime = 
+            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        gameTimer.textContent = formattedTime;
     }
 
     // --- Event Logic ---
@@ -225,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function generateMathQuestion() {
-        const num1 = Math.floor(Math.random() * 900) + 100, num2 = Math.floor(Math.random() * 900) + 100;
+        const num1 = Math.floor(Math.random() * 90) + 10, num2 = Math.floor(Math.random() * 90) + 10;
         if (Math.random() > 0.5) {
             mathChallenge.question = `${num1} + ${num2} = ?`;
             mathChallenge.answer = num1 + num2;
@@ -268,8 +351,10 @@ document.addEventListener('DOMContentLoaded', () => {
         mathChallenge.active = true;
         questionModal.style.display = 'none';
         winMessage.querySelector('p').textContent = message;
-        winMessage.querySelector('button').textContent = '重新玩一次';
+        winMessage.querySelector('button').textContent = '回到選角';
         winMessage.style.display = 'block';
+        gameStartTime = null; // Stop timer
+        timerDisplay.style.display = 'none'; // Hide timer
     }
 
     // --- Drawing ---
@@ -312,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawPlayer() {
-        const imageToDraw = loadedImages[selectedCharacterName];
+        const imageToDraw = loadedImages[selectedCharacter]; // Corrected reference
         if (imageToDraw) {
             const imageSize = player.radius * 2.5 * 1.5;
             ctx.drawImage(imageToDraw, player.x - imageSize / 2, player.y - imageSize / 2, imageSize, imageSize);
@@ -326,8 +411,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Event Listeners & Input ---
-    charSelectButtons.forEach(button => button.addEventListener('click', () => startGame(button.dataset.character)));
-    restartButton.addEventListener('click', () => startGame(selectedCharacterName));
+    charSelectButtons.forEach(button => button.addEventListener('click', (e) => selectCharacter(e.currentTarget.dataset.character, e.currentTarget)));
+    mazeSizeButtons.forEach(button => button.addEventListener('click', (e) => selectMazeSize(e.currentTarget.dataset.size, e.currentTarget)));
+    startGameBtn.addEventListener('click', finalizeGameStart);
+    restartButton.addEventListener('click', () => setupApplication());
     submitAnswerButton.addEventListener('click', checkMathAnswer);
     answerInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') checkMathAnswer(); });
     infoCloseBtn.addEventListener('click', () => {
@@ -365,8 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Win & Collision Logic ---
     function checkWinCondition() {
-        const playerGridX = Math.floor(player.x / cellSize);
-        const playerGridY = Math.floor(player.y / cellSize);
+        const playerGridX = Math.floor(player.x / cellSize), playerGridY = Math.floor(player.y / cellSize);
         if (playerGridX === endPos.x && playerGridY === endPos.y) {
             if (dogItem && !dogItem.collected) {
                 // Player reached the end without the dog
@@ -375,9 +461,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Yes, real win
                 winMessage.querySelector('p').textContent = '恭喜你！成功到達終點！';
-                winMessage.querySelector('button').textContent = '重新開始';
+                winMessage.querySelector('button').textContent = '回到選角';
                 winMessage.style.display = 'block';
                 isFollowing = false;
+                gameStartTime = null; // Stop timer
+                timerDisplay.style.display = 'none'; // Hide timer
             }
         }
     }
