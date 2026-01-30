@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (unvisitedNeighbors.length > 0) {
                 const nextCell = unvisitedNeighbors[Math.floor(Math.random() * unvisitedNeighbors.length)];
                 grid[nextCell.y][nextCell.x] = 0;
-                grid[current.y + (nextCell.y - current.y) / 2][current.x + (nextCell.x - current.x) / 2] = 0;
+                grid[current.y + (nextCell.y - current.y) / 2][current.x + (nextCell.x - current.x) / 2] = 0; 
                 stack.push(nextCell);
             } else {
                 stack.pop();
@@ -57,6 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const infoModal = document.getElementById('info-modal');
     const infoText = document.getElementById('info-text');
     const infoCloseBtn = document.getElementById('info-close-btn');
+    const timerDisplay = document.getElementById('timer-display');
+    const gameTimer = document.getElementById('game-timer');
 
     // --- Game State Variables ---
     let maze, player, camera, target = { x: 0, y: 0 }, isFollowing = false;
@@ -68,6 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadedImages = {};
     let dogItem;
     let mathChallenge = { active: false, attempts: 0, question: '', answer: 0 };
+    let gameStartTime = null; // For timer
+    let elapsedTime = 0; // For timer
 
     // --- Image Preloading ---
     function preloadImages(callback) {
@@ -102,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             imageModal.style.display = 'none';
             questionModal.style.display = 'none';
             infoModal.style.display = 'none';
+            timerDisplay.style.display = 'none'; // Ensure timer is hidden initially
         });
     }
 
@@ -137,6 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
         isFollowing = false;
         mathChallenge.active = false;
         
+        gameStartTime = null; // Reset timer
+        elapsedTime = 0;
+        updateTimerDisplay(); // Display 00:00
+        timerDisplay.style.display = 'block'; // Show timer
+
         if (window.gameAnimationId) cancelAnimationFrame(window.gameAnimationId);
         gameLoop();
     }
@@ -170,6 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function update() {
         if (!isFollowing || (player.x === target.x && player.y === target.y) || mathChallenge.active) return;
+        
+        // Timer update
+        if (gameStartTime === null) {
+            gameStartTime = performance.now();
+        }
+        elapsedTime = performance.now() - gameStartTime;
+        updateTimerDisplay();
+
         const speed = 10;
         const dx = target.x - player.x, dy = target.y - player.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -192,6 +210,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function clampCamera() {
         camera.x = Math.max(0, Math.min(camera.x, worldWidth - canvas.width));
         camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
+    }
+
+    // --- Timer Display ---
+    function updateTimerDisplay() {
+        const totalSeconds = Math.floor(elapsedTime / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        const formattedTime = 
+            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        gameTimer.textContent = formattedTime;
     }
 
     // --- Event Logic ---
@@ -225,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function generateMathQuestion() {
-        const num1 = Math.floor(Math.random() * 900) + 100, num2 = Math.floor(Math.random() * 900) + 100;
+        const num1 = Math.floor(Math.random() * 90) + 10, num2 = Math.floor(Math.random() * 90) + 10;
         if (Math.random() > 0.5) {
             mathChallenge.question = `${num1} + ${num2} = ?`;
             mathChallenge.answer = num1 + num2;
@@ -268,8 +296,10 @@ document.addEventListener('DOMContentLoaded', () => {
         mathChallenge.active = true;
         questionModal.style.display = 'none';
         winMessage.querySelector('p').textContent = message;
-        winMessage.querySelector('button').textContent = '重新玩一次';
+        winMessage.querySelector('button').textContent = '回到選角'; // Restart to character select
         winMessage.style.display = 'block';
+        gameStartTime = null; // Stop timer
+        timerDisplay.style.display = 'none'; // Hide timer
     }
 
     // --- Drawing ---
@@ -327,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners & Input ---
     charSelectButtons.forEach(button => button.addEventListener('click', () => startGame(button.dataset.character)));
-    restartButton.addEventListener('click', () => startGame(selectedCharacterName));
+    restartButton.addEventListener('click', () => setupApplication()); // Changed to go to character select
     submitAnswerButton.addEventListener('click', checkMathAnswer);
     answerInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') checkMathAnswer(); });
     infoCloseBtn.addEventListener('click', () => {
@@ -365,8 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Win & Collision Logic ---
     function checkWinCondition() {
-        const playerGridX = Math.floor(player.x / cellSize);
-        const playerGridY = Math.floor(player.y / cellSize);
+        const playerGridX = Math.floor(player.x / cellSize), playerGridY = Math.floor(player.y / cellSize);
         if (playerGridX === endPos.x && playerGridY === endPos.y) {
             if (dogItem && !dogItem.collected) {
                 // Player reached the end without the dog
@@ -375,9 +404,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Yes, real win
                 winMessage.querySelector('p').textContent = '恭喜你！成功到達終點！';
-                winMessage.querySelector('button').textContent = '重新開始';
+                winMessage.querySelector('button').textContent = '回到選角';
                 winMessage.style.display = 'block';
                 isFollowing = false;
+                gameStartTime = null; // Stop timer
+                timerDisplay.style.display = 'none'; // Hide timer
             }
         }
     }
