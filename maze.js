@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Maze Generation (DFS with Recursive Backtracking) ---
-    function generateMaze(mazeWidth, mazeHeight, braid = 0.25) {
+    function generateMaze(mazeWidth, mazeHeight, braid = 0.15) {
         const grid = Array(mazeHeight * 2 + 1).fill(0).map(() => Array(mazeWidth * 2 + 1).fill(1));
         function isValid(y, x) { return y >= 0 && y < grid.length && x >= 0 && x < grid[0].length; }
         const directions = [[0, 2], [2, 0], [0, -2], [-2, 0]];
@@ -25,24 +25,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 stack.pop();
             }
         }
-
-        // Add loops/braids to make it more complex
         if (braid > 0) {
             for (let y = 1; y < grid.length - 1; y++) {
                 for (let x = 1; x < grid[0].length - 1; x++) {
-                    // Check if the current cell is a wall between two paths (a potential door)
                     const isHorizontalDoor = grid[y][x - 1] === 0 && grid[y][x + 1] === 0;
                     const isVerticalDoor = grid[y - 1][x] === 0 && grid[y + 1][x] === 0;
-                    
                     if (grid[y][x] === 1 && (isHorizontalDoor || isVerticalDoor)) {
-                        if (Math.random() < braid) {
-                            grid[y][x] = 0; // Knock down the wall
-                        }
+                        if (Math.random() < braid) { grid[y][x] = 0; }
                     }
                 }
             }
         }
-
         return grid;
     }
 
@@ -51,22 +44,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = canvas.getContext('2d');
     const winMessage = document.getElementById('win-message');
     const restartButton = document.getElementById('restart-button');
+    const characterSelectModal = document.getElementById('character-select-modal');
+    const gameContainer = document.getElementById('game-container');
+    const charSelectButtons = document.querySelectorAll('.char-select-btn');
 
     // --- Game State Variables ---
-    let maze;
-    let player;
-    let camera;
-    let target = { x: 0, y: 0 };
-    let isFollowing = false;
-    let worldWidth, worldHeight;
-    let startPos, endPos;
+    let maze, player, camera, target = { x: 0, y: 0 }, isFollowing = false;
+    let worldWidth, worldHeight, startPos, endPos;
     const cellSize = 40;
+    
+    let selectedCharacterName = 'eddie';
+    const characterImagePaths = { eddie: 'eddie.png', murphy: 'murphy.png' };
+    const loadedImages = {};
 
+    // --- Image Preloading ---
+    function preloadImages(callback) {
+        let loadedCount = 0;
+        const imageKeys = Object.keys(characterImagePaths);
+        const totalImages = imageKeys.length;
+
+        if (totalImages === 0) {
+            callback();
+            return;
+        }
+
+        imageKeys.forEach(key => {
+            const img = new Image();
+            img.src = characterImagePaths[key];
+            img.onload = () => {
+                loadedCount++;
+                loadedImages[key] = img;
+                console.log(`Loaded image: ${key}`);
+                if (loadedCount === totalImages) {
+                    console.log("All images preloaded.");
+                    callback();
+                }
+            };
+            img.onerror = () => { // Handle potential loading errors
+                loadedCount++;
+                console.error(`Failed to load image: ${characterImagePaths[key]}`);
+                if (loadedCount === totalImages) {
+                    callback();
+                }
+            };
+        });
+    }
+    
     // --- Core Game Functions ---
-    function init() {
+    function setupApplication() {
+        // Disable buttons while preloading
+        charSelectButtons.forEach(button => button.disabled = true);
+        
+        preloadImages(() => {
+            // Enable buttons and show the selection screen once images are loaded
+            charSelectButtons.forEach(button => button.disabled = false);
+            gameContainer.style.display = 'none';
+            characterSelectModal.style.display = 'block';
+            winMessage.classList.add('hidden'); // This can remain a class
+        });
+    }
+
+    function startGame(characterName) {
+        selectedCharacterName = characterName;
+        
+        // Use direct styling as a more forceful way to ensure visibility changes
+        characterSelectModal.style.display = 'none';
+        gameContainer.style.display = 'block';
+
+        // The rest of the game setup logic
         const mazeGridWidth = 20, mazeGridHeight = 14;
-        // Generate the maze with a 25% chance of creating extra paths (braids)
-        maze = generateMaze(mazeGridWidth, mazeGridHeight, 0.25);
+        maze = generateMaze(mazeGridWidth, mazeGridHeight, 0.15);
         worldWidth = maze[0].length * cellSize;
         worldHeight = maze.length * cellSize;
 
@@ -90,13 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         clampCamera();
 
-        winMessage.classList.add('hidden');
+        winMessage.classList.add('hidden'); // This one can still be a class
         isFollowing = false;
         
-        // Cancel any existing loop before starting a new one
-        if (window.gameAnimationId) {
-            cancelAnimationFrame(window.gameAnimationId);
-        }
+        if (window.gameAnimationId) cancelAnimationFrame(window.gameAnimationId);
         gameLoop();
     }
     
@@ -115,22 +159,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance > 1) {
-            const dirX = dx / distance;
-            const dirY = dy / distance;
-            const moveX = dirX * Math.min(speed, distance);
-            const moveY = dirY * Math.min(speed, distance);
-            const nextX = player.x + moveX;
-            const nextY = player.y + moveY;
+            const dirX = dx / distance, dirY = dy / distance;
+            const moveX = dirX * Math.min(speed, distance), moveY = dirY * Math.min(speed, distance);
             let moved = false;
 
-            if (!isColliding(nextX, player.y)) {
-                player.x += moveX;
-                moved = true;
-            }
-            if (!isColliding(player.x, nextY)) {
-                player.y += moveY;
-                moved = true;
-            }
+            if (!isColliding(player.x + moveX, player.y)) { player.x += moveX; moved = true; }
+            if (!isColliding(player.x, player.y + moveY)) { player.y += moveY; moved = true; }
 
             if (moved) {
                 camera.x = player.x - canvas.width / 2;
@@ -146,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
     }
 
-    // --- Drawing Functions ---
+    // --- Drawing ---
     function drawAll() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.save();
@@ -158,10 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawMaze() {
-        const startCol = Math.floor(camera.x / cellSize);
-        const endCol = Math.min(maze[0].length - 1, Math.ceil((camera.x + canvas.width) / cellSize));
-        const startRow = Math.floor(camera.y / cellSize);
-        const endRow = Math.min(maze.length - 1, Math.ceil((camera.y + canvas.height) / cellSize));
+        const startCol = Math.floor(camera.x / cellSize), endCol = Math.min(maze[0].length - 1, Math.ceil((camera.x + canvas.width) / cellSize));
+        const startRow = Math.floor(camera.y / cellSize), endRow = Math.min(maze.length - 1, Math.ceil((camera.y + canvas.height) / cellSize));
         for (let y = startRow; y <= endRow; y++) {
             for (let x = startCol; x <= endCol; x++) {
                 if (maze[y][x] === 1) {
@@ -180,15 +212,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawPlayer() {
-        ctx.beginPath();
-        ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#dc3545';
-        ctx.fill();
-        ctx.closePath();
+        const imageToDraw = loadedImages[selectedCharacterName];
+        if (imageToDraw) {
+            const imageSize = player.radius * 2.5 * 1.5;
+            ctx.drawImage(imageToDraw, player.x - imageSize / 2, player.y - imageSize / 2, imageSize, imageSize);
+        } else {
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#dc3545';
+            ctx.fill();
+            ctx.closePath();
+        }
     }
 
     // --- Event Listeners & Input ---
-    restartButton.addEventListener('click', init);
+    charSelectButtons.forEach(button => button.addEventListener('click', () => startGame(button.dataset.character)));
+    restartButton.addEventListener('click', () => startGame(selectedCharacterName));
     canvas.addEventListener('mousedown', startFollow);
     canvas.addEventListener('mouseup', stopFollow);
     canvas.addEventListener('mousemove', follow);
@@ -226,10 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.touches && e.touches.length > 0) {
             clientX = e.touches[0].clientX;
             clientY = e.touches[0].clientY;
-        } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
-        }
+        } else { clientX = e.clientX; clientY = e.clientY; }
         return { x: clientX - rect.left + camera.x, y: clientY - rect.top + camera.y };
     }
 
@@ -262,6 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
     
-    // Start the game for the first time
-    init();
+    // --- Application Start ---
+    setupApplication();
 });
