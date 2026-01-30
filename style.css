@@ -233,4 +233,47 @@ button:active {
     color: #007bff; /* Blue color for the actual time */
 }
 
+/* --- Maze Size Selection --- */
+.modal-content h3 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.maze-size-options {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.maze-size-btn {
+    background-color: #6c757d; /* Grey for unselected */
+}
+
+.maze-size-btn:hover {
+    background-color: #5a6268;
+}
+
+.maze-size-btn.selected {
+    background-color: #28a745; /* Green for selected */
+}
+
+.maze-size-btn.selected:hover {
+    background-color: #218838;
+}
+
+#start-game-btn {
+    margin-top: 2rem;
+    font-size: 1.2rem;
+    padding: 1rem 2rem;
+}
+
+#start-game-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+
 
