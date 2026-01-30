@@ -47,6 +47,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const characterSelectModal = document.getElementById('character-select-modal');
     const gameContainer = document.getElementById('game-container');
     const charSelectButtons = document.querySelectorAll('.char-select-btn');
+    const imageModal = document.getElementById('image-modal');
+    const eventImage = document.getElementById('event-image');
+    const questionModal = document.getElementById('question-modal');
+    const questionText = document.getElementById('question-text');
+    const answerInput = document.getElementById('answer-input');
+    const submitAnswerButton = document.getElementById('submit-answer-button');
+    const feedbackText = document.getElementById('feedback-text');
+    const infoModal = document.getElementById('info-modal');
+    const infoText = document.getElementById('info-text');
+    const infoCloseBtn = document.getElementById('info-close-btn');
 
     // --- Game State Variables ---
     let maze, player, camera, target = { x: 0, y: 0 }, isFollowing = false;
@@ -54,64 +64,52 @@ document.addEventListener('DOMContentLoaded', () => {
     const cellSize = 40;
     
     let selectedCharacterName = 'eddie';
-    const characterImagePaths = { eddie: 'eddie.png', murphy: 'murphy.png' };
+    const imagePaths = { eddie: 'eddie.png', murphy: 'murphy.png', dog: 'dog.png', master01: 'master01.png', dog02: 'dog02.png' };
     const loadedImages = {};
+    let dogItem;
+    let mathChallenge = { active: false, attempts: 0, question: '', answer: 0 };
 
     // --- Image Preloading ---
     function preloadImages(callback) {
         let loadedCount = 0;
-        const imageKeys = Object.keys(characterImagePaths);
+        const imageKeys = Object.keys(imagePaths);
         const totalImages = imageKeys.length;
-
-        if (totalImages === 0) {
-            callback();
-            return;
-        }
-
+        if (totalImages === 0) { callback(); return; }
         imageKeys.forEach(key => {
             const img = new Image();
-            img.src = characterImagePaths[key];
+            img.src = imagePaths[key];
             img.onload = () => {
                 loadedCount++;
                 loadedImages[key] = img;
-                console.log(`Loaded image: ${key}`);
-                if (loadedCount === totalImages) {
-                    console.log("All images preloaded.");
-                    callback();
-                }
+                if (loadedCount === totalImages) callback();
             };
-            img.onerror = () => { // Handle potential loading errors
+            img.onerror = () => {
                 loadedCount++;
-                console.error(`Failed to load image: ${characterImagePaths[key]}`);
-                if (loadedCount === totalImages) {
-                    callback();
-                }
+                console.error(`Failed to load image: ${imagePaths[key]}`);
+                if (loadedCount === totalImages) callback();
             };
         });
     }
     
     // --- Core Game Functions ---
     function setupApplication() {
-        // Disable buttons while preloading
         charSelectButtons.forEach(button => button.disabled = true);
-        
         preloadImages(() => {
-            // Enable buttons and show the selection screen once images are loaded
             charSelectButtons.forEach(button => button.disabled = false);
             gameContainer.style.display = 'none';
-            characterSelectModal.style.display = 'block';
-            winMessage.classList.add('hidden'); // This can remain a class
+            characterSelectModal.style.display = 'flex';
+            winMessage.style.display = 'none';
+            imageModal.style.display = 'none';
+            questionModal.style.display = 'none';
+            infoModal.style.display = 'none';
         });
     }
 
     function startGame(characterName) {
         selectedCharacterName = characterName;
-        
-        // Use direct styling as a more forceful way to ensure visibility changes
         characterSelectModal.style.display = 'none';
         gameContainer.style.display = 'block';
 
-        // The rest of the game setup logic
         const mazeGridWidth = 20, mazeGridHeight = 14;
         maze = generateMaze(mazeGridWidth, mazeGridHeight, 0.15);
         worldWidth = maze[0].length * cellSize;
@@ -122,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         startPos = { x: 1, y: 1 };
         endPos = { x: maze[0].length - 2, y: maze.length - 2 };
+        placeDogItem();
 
         player = {
             x: startPos.x * cellSize + cellSize / 2,
@@ -131,17 +130,36 @@ document.addEventListener('DOMContentLoaded', () => {
         
         target.x = player.x;
         target.y = player.y;
-        camera = {
-            x: player.x - canvas.width / 2,
-            y: player.y - canvas.height / 2,
-        };
+        camera = { x: player.x - canvas.width / 2, y: player.y - canvas.height / 2 };
         clampCamera();
 
-        winMessage.classList.add('hidden'); // This one can still be a class
+        winMessage.style.display = 'none';
         isFollowing = false;
+        mathChallenge.active = false;
         
         if (window.gameAnimationId) cancelAnimationFrame(window.gameAnimationId);
         gameLoop();
+    }
+
+    function placeDogItem() {
+        const validPositions = [];
+        for (let y = 1; y < maze.length - 1; y++) {
+            for (let x = 1; x < maze[y].length - 1; x++) {
+                if (maze[y][x] === 0 && (x !== startPos.x || y !== startPos.y) && (x !== endPos.x || y !== endPos.y)) {
+                    validPositions.push({ x, y });
+                }
+            }
+        }
+        if (validPositions.length > 0) {
+            const pos = validPositions[Math.floor(Math.random() * validPositions.length)];
+            dogItem = {
+                gridX: pos.x, gridY: pos.y,
+                x: pos.x * cellSize + cellSize / 2, y: pos.y * cellSize + cellSize / 2,
+                radius: cellSize / 3, collected: false,
+            };
+        } else {
+            dogItem = null; // No place for the dog
+        }
     }
     
     function gameLoop() {
@@ -151,26 +169,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function update() {
-        if (!isFollowing || (player.x === target.x && player.y === target.y)) return;
-
+        if (!isFollowing || (player.x === target.x && player.y === target.y) || mathChallenge.active) return;
         const speed = 10;
-        const dx = target.x - player.x;
-        const dy = target.y - player.y;
+        const dx = target.x - player.x, dy = target.y - player.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-
         if (distance > 1) {
             const dirX = dx / distance, dirY = dy / distance;
             const moveX = dirX * Math.min(speed, distance), moveY = dirY * Math.min(speed, distance);
             let moved = false;
-
             if (!isColliding(player.x + moveX, player.y)) { player.x += moveX; moved = true; }
             if (!isColliding(player.x, player.y + moveY)) { player.y += moveY; moved = true; }
-
             if (moved) {
                 camera.x = player.x - canvas.width / 2;
                 camera.y = player.y - canvas.height / 2;
                 clampCamera();
                 checkWinCondition();
+                checkDogCollision();
             }
         }
     }
@@ -180,6 +194,84 @@ document.addEventListener('DOMContentLoaded', () => {
         camera.y = Math.max(0, Math.min(camera.y, worldHeight - canvas.height));
     }
 
+    // --- Event Logic ---
+    function checkDogCollision() {
+        if (!dogItem || dogItem.collected) return;
+        const dx = player.x - dogItem.x, dy = player.y - dogItem.y;
+        if (Math.sqrt(dx * dx + dy * dy) < player.radius + dogItem.radius) {
+            dogItem.collected = true;
+            triggerDogEvent();
+        }
+    }
+
+    function triggerDogEvent() {
+        isFollowing = false;
+        mathChallenge.active = true;
+        eventImage.src = loadedImages['master01'].src;
+        imageModal.style.display = 'flex';
+        setTimeout(() => {
+            imageModal.style.display = 'none';
+            askMathQuestion();
+        }, 2000);
+    }
+
+    function askMathQuestion() {
+        mathChallenge.attempts = 0;
+        generateMathQuestion();
+        questionModal.style.display = 'flex';
+        answerInput.value = '';
+        feedbackText.textContent = '';
+        answerInput.focus();
+    }
+
+    function generateMathQuestion() {
+        const num1 = Math.floor(Math.random() * 900) + 100, num2 = Math.floor(Math.random() * 900) + 100;
+        if (Math.random() > 0.5) {
+            mathChallenge.question = `${num1} + ${num2} = ?`;
+            mathChallenge.answer = num1 + num2;
+        } else {
+            const max = Math.max(num1, num2), min = Math.min(num1, num2);
+            mathChallenge.question = `${max} - ${min} = ?`;
+            mathChallenge.answer = max - min;
+        }
+        questionText.textContent = mathChallenge.question;
+    }
+
+    function checkMathAnswer() {
+        const playerAnswer = parseInt(answerInput.value, 10);
+        if (isNaN(playerAnswer)) {
+            feedbackText.textContent = '請輸入一個數字。';
+            return;
+        }
+        if (playerAnswer === mathChallenge.answer) {
+            questionModal.style.display = 'none';
+            eventImage.src = loadedImages['dog02'].src;
+            imageModal.style.display = 'flex';
+            setTimeout(() => {
+                imageModal.style.display = 'none';
+                mathChallenge.active = false;
+            }, 2000);
+        } else {
+            mathChallenge.attempts++;
+            answerInput.value = '';
+            if (mathChallenge.attempts < 2) {
+                feedbackText.textContent = '答錯了，再試一次！';
+                generateMathQuestion();
+            } else {
+                gameOver('答錯兩次，遊戲結束！');
+            }
+        }
+    }
+    
+    function gameOver(message) {
+        isFollowing = false;
+        mathChallenge.active = true;
+        questionModal.style.display = 'none';
+        winMessage.querySelector('p').textContent = message;
+        winMessage.querySelector('button').textContent = '重新玩一次';
+        winMessage.style.display = 'block';
+    }
+
     // --- Drawing ---
     function drawAll() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -187,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.translate(-camera.x, -camera.y);
         drawMaze();
         drawEndpoints();
+        drawDogItem();
         drawPlayer();
         ctx.restore();
     }
@@ -196,10 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const startRow = Math.floor(camera.y / cellSize), endRow = Math.min(maze.length - 1, Math.ceil((camera.y + canvas.height) / cellSize));
         for (let y = startRow; y <= endRow; y++) {
             for (let x = startCol; x <= endCol; x++) {
-                if (maze[y][x] === 1) {
-                    ctx.fillStyle = '#333';
-                    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-                }
+                if (maze[y][x] === 1) { ctx.fillStyle = '#333'; ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize); }
             }
         }
     }
@@ -209,6 +299,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillRect(startPos.x * cellSize, startPos.y * cellSize, cellSize, cellSize);
         ctx.fillStyle = '#007bff';
         ctx.fillRect(endPos.x * cellSize, endPos.y * cellSize, cellSize, cellSize);
+    }
+
+    function drawDogItem() {
+        if (dogItem && !dogItem.collected) {
+            const imageToDraw = loadedImages['dog'];
+            if (imageToDraw) {
+                const imageSize = cellSize * 0.8;
+                ctx.drawImage(imageToDraw, dogItem.x - imageSize / 2, dogItem.y - imageSize / 2, imageSize, imageSize);
+            }
+        }
     }
 
     function drawPlayer() {
@@ -228,6 +328,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners & Input ---
     charSelectButtons.forEach(button => button.addEventListener('click', () => startGame(button.dataset.character)));
     restartButton.addEventListener('click', () => startGame(selectedCharacterName));
+    submitAnswerButton.addEventListener('click', checkMathAnswer);
+    answerInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') checkMathAnswer(); });
+    infoCloseBtn.addEventListener('click', () => {
+        infoModal.style.display = 'none';
+    });
+
     canvas.addEventListener('mousedown', startFollow);
     canvas.addEventListener('mouseup', stopFollow);
     canvas.addEventListener('mousemove', follow);
@@ -239,8 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function startFollow(e) {
         e.preventDefault();
         const worldPos = getPos(e);
-        const dx = worldPos.x - player.x;
-        const dy = worldPos.y - player.y;
+        const dx = worldPos.x - player.x, dy = worldPos.y - player.y;
         if (Math.sqrt(dx * dx + dy * dy) < player.radius * 2) {
             isFollowing = true;
             target.x = worldPos.x;
@@ -248,24 +353,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function follow(e) {
-        if (isFollowing) {
-            e.preventDefault();
-            const worldPos = getPos(e);
-            target.x = worldPos.x;
-            target.y = worldPos.y;
-        }
-    }
-
+    function follow(e) { if (isFollowing) { e.preventDefault(); const worldPos = getPos(e); target.x = worldPos.x; target.y = worldPos.y; } }
     function stopFollow() { isFollowing = false; }
-
     function getPos(e) {
         const rect = canvas.getBoundingClientRect();
         let clientX, clientY;
-        if (e.touches && e.touches.length > 0) {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
-        } else { clientX = e.clientX; clientY = e.clientY; }
+        if (e.touches && e.touches.length > 0) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
+        else { clientX = e.clientX; clientY = e.clientY; }
         return { x: clientX - rect.left + camera.x, y: clientY - rect.top + camera.y };
     }
 
@@ -274,8 +368,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const playerGridX = Math.floor(player.x / cellSize);
         const playerGridY = Math.floor(player.y / cellSize);
         if (playerGridX === endPos.x && playerGridY === endPos.y) {
-            winMessage.classList.remove('hidden');
-            isFollowing = false;
+            if (dogItem && !dogItem.collected) {
+                // Player reached the end without the dog
+                infoText.textContent = '你沒有救到狗狗喔，再去找看看';
+                infoModal.style.display = 'flex';
+            } else {
+                // Yes, real win
+                winMessage.querySelector('p').textContent = '恭喜你！成功到達終點！';
+                winMessage.querySelector('button').textContent = '重新開始';
+                winMessage.style.display = 'block';
+                isFollowing = false;
+            }
         }
     }
 
@@ -288,8 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let x = startCol; x <= endCol; x++) {
                 if (y >= 0 && y < maze.length && x >= 0 && x < maze[y].length && maze[y][x] === 1) {
                     const wallX = x * cellSize, wallY = y * cellSize;
-                    const closestX = Math.max(wallX, Math.min(newX, wallX + cellSize));
-                    const closestY = Math.max(wallY, Math.min(newY, wallY + cellSize));
+                    const closestX = Math.max(wallX, Math.min(newX, wallX + cellSize)), closestY = Math.max(wallY, Math.min(newY, wallY + cellSize));
                     const dX = newX - closestX, dY = newY - closestY;
                     if ((dX * dX) + (dY * dY) < (player.radius * player.radius)) return true;
                 }

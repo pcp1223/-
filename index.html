@@ -31,6 +31,28 @@
             <button id="restart-button">重新開始</button>
         </div>
     </div>
+
+    <!-- Event Modals -->
+    <div id="image-modal" class="hidden">
+        <img id="event-image" src="" alt="Event Image">
+    </div>
+
+    <div id="question-modal" class="hidden">
+        <div class="modal-content">
+            <p id="question-text">問題：</p>
+            <input type="text" id="answer-input" placeholder="輸入你的答案">
+            <button id="submit-answer-button">提交答案</button>
+            <p id="feedback-text"></p>
+        </div>
+    </div>
+
+    <div id="info-modal" class="hidden">
+        <div class="modal-content">
+            <p id="info-text"></p>
+            <button id="info-close-btn">了解</button>
+        </div>
+    </div>
+
     <script src="maze.js"></script>
 </body>
 </html>
